@@ -1,0 +1,15 @@
+[package]
+name = "smartplug_slack_notifier"
+version = "0.1.0"
+authors = ["Aaron Landwehr <aaron.landwehr@chipdesignsystems.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hs100api = "0.1.1"
+
+[dependencies.slack_api]
+version = "0.23.1"
+default-features = true
+features = ["sync", "reqwest_blocking"]
