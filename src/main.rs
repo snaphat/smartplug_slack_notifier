@@ -59,44 +59,42 @@ fn main() {
                 }
             };
 
-            // Retrieve alias name and relay state
-            let alias;
-            let relay_state;
-            let mut changed = false;
-            match info.system {
-                Some(sys) => {
-                    //dev_name = sys.get_sysinfo.dev_name;
-                    alias = sys.get_sysinfo.alias;
-                    relay_state = sys.get_sysinfo.relay_state != 0;
-                    let old_val = entry.insert(alias.clone(), relay_state);
-                    let old_val = old_val.unwrap_or(relay_state);
-                    if old_val != relay_state {
-                        changed = true;
-                        let state = match relay_state {
-                            true => "ON",
-                            false => "OFF",
-                        };
-                        let icon = match relay_state {
-                            true => ":red_circle:",
-                            false => ":large_blue_circle:",
-                        };
-                        let msg = format!("{}{} *{}* switched *{}*! {}{}",icon, icon, alias, state, icon, icon);
-                        match send_slack_message(&msg) {
-                            Ok(_) => (),
-                            Err(err) => println!("{}", err),
-                        };
-                    }
-                }
+            // Retrieve info from the plug.
+            let (mac, alias, relay_state) = match info.system {
+                Some(sys) => (sys.get_sysinfo.mac, sys.get_sysinfo.alias, sys.get_sysinfo.relay_state != 0),
                 None => {
                     println!("Host: {}, Error decoding plug info!", hosts[i]);
                     continue;
                 }
             };
 
+            let old_val = entry.insert(mac.clone(), relay_state).unwrap_or(relay_state);
+            let changed = if old_val != relay_state {
+                let state = match relay_state {
+                    true => "ON",
+                    false => "OFF",
+                };
+                let icon = match relay_state {
+                    true => ":red_circle:",
+                    false => ":large_blue_circle:",
+                };
+                let msg = format!(
+                    "{}{} *{}* switched *{}*! {}{}",
+                    icon, icon, &alias, state, icon, icon
+                );
+                match send_slack_message(&msg) {
+                    Ok(_) => (),
+                    Err(err) => println!("{}", err),
+                };
+                true
+            } else {
+                false
+            };
+
             // Print device state
             println!(
-                "Host: {}, Device: {}, Relay State: {}, Changed {}",
-                hosts[i], alias, relay_state, changed
+                "Host: {}, MAC: {}, Device: {}, Relay State: {}, Changed {}",
+                hosts[i], mac, alias, relay_state, changed
             );
 
             // Sleep before querying again.
