@@ -61,11 +61,7 @@ fn main() {
 
             // Retrieve info from the plug.
             let (mac, alias, relay_state) = match info.system {
-                Some(sys) => (
-                    sys.get_sysinfo.mac,
-                    sys.get_sysinfo.alias,
-                    sys.get_sysinfo.relay_state != 0,
-                ),
+                Some(sys) => (sys.get_sysinfo.mac, sys.get_sysinfo.alias, sys.get_sysinfo.relay_state != 0),
                 None => {
                     println!("Host: {}, Error decoding plug info!", hosts[i]);
                     continue;
