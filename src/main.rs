@@ -61,34 +61,40 @@ fn main() {
 
             // Retrieve info from the plug.
             let (mac, alias, relay_state) = match info.system {
-                Some(sys) => (sys.get_sysinfo.mac, sys.get_sysinfo.alias, sys.get_sysinfo.relay_state != 0),
+                Some(sys) => (
+                    sys.get_sysinfo.mac,
+                    sys.get_sysinfo.alias,
+                    sys.get_sysinfo.relay_state != 0,
+                ),
                 None => {
                     println!("Host: {}, Error decoding plug info!", hosts[i]);
                     continue;
                 }
             };
 
+            // Insert current state into map and return old state.
             let old_val = entry.insert(mac.clone(), relay_state).unwrap_or(relay_state);
+
+            // If state change send message.
             let changed = if old_val != relay_state {
-                let state = match relay_state {
-                    true => "ON",
-                    false => "OFF",
+                // Populate info for printing.
+                let (state, icon) = if relay_state == true {
+                    ("ON", ":red_circle:")
+                } else {
+                    ("OFF", ":large_blue_circle:")
                 };
-                let icon = match relay_state {
-                    true => ":red_circle:",
-                    false => ":large_blue_circle:",
-                };
-                let msg = format!(
-                    "{}{} *{}* switched *{}*! {}{}",
-                    icon, icon, &alias, state, icon, icon
-                );
-                match send_slack_message(&msg) {
-                    Ok(_) => (),
-                    Err(err) => println!("{}", err),
-                };
-                true
+
+                // Format string.
+                let msg = format!("{}{} *{}* switched *{}*! {}{}", icon, icon, &alias, state, icon, icon);
+
+                // Send message.
+                if let Err(err) = send_slack_message(&msg) {
+                    println!("{}", err);
+                }
+
+                true // return changed.
             } else {
-                false
+                false // return unchanged.
             };
 
             // Print device state
