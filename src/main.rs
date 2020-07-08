@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use std::thread;
 use std::time::Duration;
 
-fn send_slack_message(text: &str) -> Result<(), Box<dyn std::error::Error>> {
+// Send slack message
+fn send_slack_message(channel: &str, text: &str) -> Result<(), Box<dyn std::error::Error>> {
     let token = "***REMOVED***";
     let client = slack::default_client().map_err(|_| "Could not get default_client")?;
 
@@ -12,7 +13,7 @@ fn send_slack_message(text: &str) -> Result<(), Box<dyn std::error::Error>> {
         &client,
         &token,
         &slack::chat::PostMessageRequest {
-            channel: "#remote_operation",
+            channel: channel,
             text: text,
             username: Some("smartplug_notifier"),
             ..slack::chat::PostMessageRequest::default()
@@ -84,7 +85,7 @@ fn main() {
                 let msg = format!("{}{} *{}* switched *{}*! {}{}", icon, icon, &alias, state, icon, icon);
 
                 // Send message.
-                if let Err(err) = send_slack_message(&msg) {
+                if let Err(err) = send_slack_message("#remote_operation", &msg) {
                     println!("{}", err);
                 }
 
