@@ -4,35 +4,30 @@ use std::thread;
 use std::time::Duration;
 
 // Send slack message
-fn send_slack_message(channel: &str, text: &str) {
-    let send_msg = || -> Result<(), Box<dyn std::error::Error>> {
-        let token = "***REMOVED***";
-        let client = slack::default_client().map_err(|_| "Could not get default_client")?;
+fn send_slack_message(channel: &str, text: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let token = "***REMOVED***";
+    let client = slack::default_client().map_err(|_| "Could not get default_client")?;
 
-        slack::chat::post_message(
-            &client,
-            &token,
-            &slack::chat::PostMessageRequest {
-                channel: channel,
-                text: text,
-                username: Some("smartplug_notifier"),
-                ..slack::chat::PostMessageRequest::default()
-            },
-        )?;
+    slack::chat::post_message(
+        &client,
+        &token,
+        &slack::chat::PostMessageRequest {
+            channel: channel,
+            text: text,
+            username: Some("smartplug_notifier"),
+            ..slack::chat::PostMessageRequest::default()
+        },
+    )?;
 
-        Ok(())
-    };
-
-    if let Err(err) = send_msg() {
-        println!("Error message: {:?}", err);
-    }
+    Ok(())
 }
 
 struct Host {
     ip: String,
-    plug: SmartPlug,
-    state: Option<i64>,
     alias: String,
+    state: Option<i64>,
+    changed: bool,
+    plug: SmartPlug,
 }
 
 fn main() {
@@ -48,9 +43,10 @@ fn main() {
     for ip in &ips {
         hosts.push(Host {
             ip: ip.to_string(),
-            state: None, // empty state.
-            plug: SmartPlug::new(ip),
             alias: String::from("Unk"),
+            state: None, // empty state.
+            changed: false,
+            plug: SmartPlug::new(ip),
         });
     }
 
@@ -79,10 +75,16 @@ fn main() {
             let old_state = host.state.replace(state).unwrap_or(state);
 
             // Whether a state change has occurred.
-            let changed = old_state != state;
+            host.changed = (old_state != state) | host.changed;
+
+            // Print device state
+            println!(
+                "Host: {}, Alias: {}, MAC: {}, Relay State: {}, Changed {}",
+                host.ip, host.alias, mac, state, host.changed
+            );
 
             // If state change send message.
-            if changed {
+            if host.changed {
                 // Populate info for printing.
                 let (state, icon) = match state {
                     1 => ("On", ":red_circle:"),
@@ -94,14 +96,11 @@ fn main() {
                 let msg = format!("{}{} *{}* switched *{}*! {}{}", icon, icon, host.alias, state, icon, icon);
 
                 // Send message.
-                send_slack_message("#remote_operation", &msg);
+                match send_slack_message("#remote_operation", &msg) {
+                    Ok(_) => host.changed = false, // switch changed state if successfully sent.
+                    Err(err) => println!("Error message: {:?}", err),
+                }
             }
-
-            // Print device state
-            println!(
-                "Host: {}, Alias: {}, MAC: {}, Relay State: {}, Changed {}",
-                host.ip, host.alias, mac, state, changed
-            );
         }
         // Sleep before querying again.
         thread::sleep(Duration::from_secs(30));
