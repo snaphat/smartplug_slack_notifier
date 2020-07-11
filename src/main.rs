@@ -9,7 +9,7 @@ static IPS: &'static [&str] = &[
 ];
 
 fn add_hosts() -> notifier::Hosts {
-    let mut hosts: notifier::Hosts = Default::default();
+    let mut hosts = notifier::Hosts::new();
 
     // Add IPs to notifier.
     for ip in IPS.iter() {

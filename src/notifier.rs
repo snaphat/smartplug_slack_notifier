@@ -71,6 +71,15 @@ pub struct Hosts {
 }
 
 impl Hosts {
+    pub fn new() -> Hosts {
+        let icon = ":white_circle:";
+        match slack::send_message("@snaphat", &format!("{}{} smartplug_notifier starting!{}{} ", icon, icon, icon, icon)) {
+            Ok(_) => (),
+            Err(err) => println!("Error message: {:?}", err),
+        }
+        Hosts { ..Default::default() }
+    }
+
     // Add plug.
     pub fn add(&mut self, ip: &'static str) {
         self.hosts.push(Host {
