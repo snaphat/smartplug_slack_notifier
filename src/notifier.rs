@@ -2,7 +2,7 @@ use hs100api::SmartPlug;
 use std::thread;
 use std::time::Duration;
 
-mod slack;
+pub mod slack;
 
 struct Host {
     ip: String,
@@ -72,11 +72,6 @@ pub struct Hosts {
 
 impl Hosts {
     pub fn new() -> Hosts {
-        let icon = ":white_circle:";
-        match slack::send_message("@snaphat", &format!("{}{} smartplug_notifier starting!{}{} ", icon, icon, icon, icon)) {
-            Ok(_) => (),
-            Err(err) => println!("Error message: {:?}", err),
-        }
         Hosts { ..Default::default() }
     }
 
