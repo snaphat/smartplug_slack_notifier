@@ -2,9 +2,14 @@
 use std::{ffi::OsString, sync::mpsc, time::Duration};
 use windows_service::{
     define_windows_service,
-    service::{ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType},
+    service::{
+        ServiceAccess, ServiceControl, ServiceControlAccept, ServiceErrorControl, ServiceExitCode, ServiceInfo, ServiceStartType, ServiceState, ServiceStatus,
+        ServiceType,
+    },
     service_control_handler::{self, ServiceControlHandlerResult},
-    service_dispatcher, Result,
+    service_dispatcher,
+    service_manager::{ServiceManager, ServiceManagerAccess},
+    Result,
 };
 
 use std::thread;
@@ -12,53 +17,54 @@ use std::thread;
 const SERVICE_TYPE: ServiceType = ServiceType::OWN_PROCESS;
 static SERVICE_NAME: &str = "smartplug_slack_notifier";
 
-//fn unregister(name: &str) -> windows_service::Result<()> {
-//    let manager_access = ServiceManagerAccess::CONNECT;
-//    let service_manager = ServiceManager::local_computer(None::<&str>, manager_access)?;
-//
-//    let service_access = ServiceAccess::QUERY_STATUS | ServiceAccess::STOP | ServiceAccess::DELETE;
-//    let service = service_manager.open_service(name, service_access)?;
-//
-//    let service_status = service.query_status()?;
-//    if service_status.current_state != ServiceState::Stopped {
-//        service.stop()?;
-//        // Wait for service to stop
-//        thread::sleep(Duration::from_secs(1));
-//    }
-//
-//    service.delete()?;
-//    Ok(())
-//}
-//
-//pub fn register(name: &str) -> windows_service::Result<()> {
-//    let manager_access = ServiceManagerAccess::CONNECT | ServiceManagerAccess::CREATE_SERVICE;
-//    let service_manager = ServiceManager::local_computer(None::<&str>, manager_access)?;
-//
-//    // This example installs the service defined in `examples/ping_service.rs`.
-//    // In the real world code you would set the executable path to point to your own binary
-//    // that implements windows service.
-//    let service_binary_path = ::std::env::current_exe().unwrap().with_file_name("smartplug_slack_notifier.exe");
-//    let service_info = ServiceInfo {
-//        name: OsString::from(name),
-//        display_name: OsString::from(name),
-//        service_type: ServiceType::OWN_PROCESS,
-//        start_type: ServiceStartType::OnDemand,
-//        error_control: ServiceErrorControl::Normal,
-//        executable_path: service_binary_path,
-//        launch_arguments: vec![],
-//        dependencies: vec![],
-//        account_name: None, // run as System
-//        account_password: None,
-//    };
-//    let _service = service_manager.create_service(&service_info, ServiceAccess::empty())?;
-//    Ok(())
-//}
+pub fn unregister(name: &str) -> windows_service::Result<()> {
+    let manager_access = ServiceManagerAccess::CONNECT;
+    let service_manager = ServiceManager::local_computer(None::<&str>, manager_access)?;
+
+    let service_access = ServiceAccess::QUERY_STATUS | ServiceAccess::STOP | ServiceAccess::DELETE;
+    let service = service_manager.open_service(name, service_access)?;
+
+    let service_status = service.query_status()?;
+    if service_status.current_state != ServiceState::Stopped {
+        service.stop()?;
+        // Wait for service to stop
+        thread::sleep(Duration::from_secs(1));
+    }
+
+    service.delete()?;
+    Ok(())
+}
+
+pub fn register(name: &str) -> windows_service::Result<()> {
+    let manager_access = ServiceManagerAccess::CONNECT | ServiceManagerAccess::CREATE_SERVICE;
+    let service_manager = ServiceManager::local_computer(None::<&str>, manager_access)?;
+
+    // This example installs the service defined in `examples/ping_service.rs`.
+    // In the real world code you would set the executable path to point to your own binary
+    // that implements windows service.
+    let service_binary_path = ::std::env::current_exe().unwrap().with_file_name("smartplug_slack_notifier.exe");
+    let service_info = ServiceInfo {
+        name: OsString::from(name),
+        display_name: OsString::from(name),
+        service_type: ServiceType::OWN_PROCESS,
+        start_type: ServiceStartType::OnDemand,
+        error_control: ServiceErrorControl::Normal,
+        executable_path: service_binary_path,
+        launch_arguments: vec![OsString::from("--run")],
+        dependencies: vec![],
+        account_name: None, // run as System
+        account_password: None,
+    };
+    let _service = service_manager.create_service(&service_info, ServiceAccess::empty())?;
+    Ok(())
+}
 
 static mut HANDLER: Option<Box<dyn FnMut() + Send>> = None;
 pub fn run(handler: impl FnMut() + Send + 'static) -> Result<()> {
     unsafe {
         HANDLER = Some(Box::new(handler));
     }
+    println!("Starting service...");
     service_dispatcher::start(SERVICE_NAME, ffi_service_main)
 }
 
@@ -74,6 +80,7 @@ define_windows_service!(ffi_service_main, my_service_main);
 pub fn my_service_main(_arguments: Vec<OsString>) {
     if let Err(_e) = run_service() {
         // Handle the error, by logging or something.
+        println!("Error message: {:?}", _e);
     }
 }
 
@@ -94,7 +101,10 @@ pub fn run_service() -> Result<()> {
                 ServiceControlHandlerResult::NoError
             }
 
-            _ => ServiceControlHandlerResult::NotImplemented,
+            _e => {
+                println!("Error message: {:?}", _e);
+                ServiceControlHandlerResult::NotImplemented
+            }
         }
     };
 

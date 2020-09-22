@@ -1,10 +1,12 @@
 mod notifier;
 mod service;
+use std::env;
+use whoami;
 
 static IPS: &'static [&str] = &[
     //"192.168.2.147:9999", // Clab-room-light
-    "192.168.2.146:9999", // SC6800-NSLEDS1
-    "192.168.2.101:9999", // SC6800-NSLEDS3
+    "192.168.86.28:9999", // SC8200-NSLEDS4
+    "192.168.86.31:9999", // SC6800-NSLEDS1
 ];
 
 struct Cleanup;
@@ -37,11 +39,35 @@ fn add_hosts() -> notifier::Hosts {
 
 #[cfg(windows)]
 fn main() {
-    let _cleanup = Cleanup;
-    let mut hosts = add_hosts();
-    match service::run(move || hosts.check()) {
-        Ok(_) => (),
-        Err(_) => (),
+    let args: Vec<String> = env::args().collect();
+    match args.get(1).map(String::as_str) {
+        Some("--register") => {
+            // Register
+            println!("Registering smartplug_slack_notifier service...");
+            if let Err(_e) = service::register("smartplug_slack_notifier") {
+                println!("Error message: {:?}", _e)
+            }
+        },
+        Some("--unregister") => {
+            // Register
+            println!("Unregistering smartplug_slack_notifier service...");
+            if let Err(_e) = service::unregister("smartplug_slack_notifier") {
+                println!("Error message: {:?}", _e)
+            }
+        },
+        Some("--run") => {
+            // Run
+            if whoami::username() == "SYSTEM" { // Must run as SYSTEM user
+                let _cleanup = Cleanup;
+                let mut hosts = add_hosts();
+                if let Err(_e) = service::run(move || hosts.check()) {
+                    println!("Error message: {:?}", _e)
+                }
+            } else {
+                println!("smartplug_slack_notifier service must be run as the SYSTEM user!");
+            }
+        },
+        Some(_) | None => println!("smartplug_slack_notifier.exe [--register] [--unregister] [--run]"),
     }
 }
 
