@@ -5,6 +5,7 @@ use std::time::Duration;
 pub mod slack;
 
 struct Host {
+    token: String,
     ip: String,
     alias: String,
     state: Option<i64>,
@@ -57,9 +58,9 @@ impl Host {
             let msg = format!("{}{} *{}* switched *{}*! {}{}", icon, icon, self.alias, state, icon, icon);
 
             // Send message.
-            match slack::send_message("#remote_operation", &msg) {
+            match slack::send_message(&self.token, "#remote_operation", &msg) {
                 Ok(_) => self.changed = false, // switch changed state if successfully sent.
-                Err(err) => println!("Error message: {:?}", err),
+                Err(err) => println!("Error sending slack message: {:?}", err),
             }
         }
     }
@@ -67,22 +68,24 @@ impl Host {
 
 #[derive(Default)]
 pub struct Hosts {
+    pub token: String,
     hosts: Vec<Host>,
 }
 
 impl Hosts {
-    pub fn new() -> Hosts {
-        Hosts { ..Default::default() }
+    pub fn new(token: String) -> Hosts {
+        Hosts { token, ..Default::default() }
     }
 
     // Add plug.
-    pub fn add(&mut self, ip: &'static str) {
+    pub fn add(&mut self, ip: String) {
         self.hosts.push(Host {
+            token: self.token.clone(),
             ip: ip.to_string(),
             alias: String::from("Unk"),
             state: None, // empty state.
             changed: false,
-            plug: SmartPlug::new(ip),
+            plug: SmartPlug::new(Box::leak(ip.into_boxed_str())), // Leak string to make it a &'static str
         });
     }
 
