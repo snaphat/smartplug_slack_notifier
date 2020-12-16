@@ -1,6 +1,6 @@
 [package]
 name = "smartplug_slack_notifier"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Aaron Landwehr <aaron.landwehr@chipdesignsystems.com>"]
 edition = "2018"
 
